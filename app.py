@@ -12,6 +12,7 @@ import os
 
 from form16_parser import parse_form16
 from tax_calculator import TaxInputs, compare_regimes
+from capital_gains_parser import new_capital_gains_parse
 
 st.set_page_config(page_title="ITR Helper", page_icon="🧾", layout="centered")
 st.title("🧾 ITR Helper — Personal Use")
