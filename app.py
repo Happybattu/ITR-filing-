@@ -56,7 +56,37 @@ if uploaded is not None:
         st.error(f"Couldn't parse this PDF automatically ({e}). Enter figures manually below.")
     finally:
         os.unlink(tmp_path)
+st.header("Upload Broker Capital Gains Report (Optional)")
 
+broker_file = st.file_uploader(
+    "Upload Zerodha/Groww/Upstox/ICICI Direct P&L Report",
+    type=["csv", "xlsx", "xls"]
+)
+
+if broker_file is not None:
+    with tempfile.NamedTemporaryFile(delete=False, suffix=os.path.splitext(broker_file.name)[1]) as tmp:
+        tmp.write(broker_file.read())
+        tmp_path = tmp.name
+
+    try:
+        gains = parse_broker_pnl(tmp_path)
+
+        st.success(f"Parsed {gains['trade_count']} trades")
+
+        st.session_state["stcg"] = gains["stcg_total"]
+        st.session_state["ltcg"] = gains["ltcg_total"]
+
+        st.write(f"STCG : ₹{gains['stcg_total']:,.2f}")
+        st.write(f"LTCG : ₹{gains['ltcg_total']:,.2f}")
+
+        for w in gains["warnings"]:
+            st.warning(w)
+
+    except Exception as e:
+        st.error(e)
+
+    finally:
+        os.unlink(tmp_path)
 # --- Step 2: Editable fields -------------------------------------------------
 st.header("2. Verify / enter your figures")
 
