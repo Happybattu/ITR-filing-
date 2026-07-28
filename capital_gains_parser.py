@@ -65,7 +65,16 @@ def _find_header_row(raw_df: pd.DataFrame) -> int | None:
 
 def _load_table(file_path: str, sheet_name=None) -> pd.DataFrame:
     if file_path.lower().endswith((".xlsx", ".xls")):
-        raw = pd.read_excel(file_path, sheet_name=sheet_name, header=None)
+        # pd.read_excel treats sheet_name=None as "read ALL sheets" and
+        # returns a dict of {sheet_name: DataFrame} instead of a single
+        # DataFrame — that's what was hitting raw.iloc[idx] below and
+        # throwing "'dict' object has no attribute 'iloc'".
+        # Default to the first sheet unless the caller asks for a specific one.
+        effective_sheet = sheet_name if sheet_name is not None else 0
+        raw = pd.read_excel(file_path, sheet_name=effective_sheet, header=None)
+        if isinstance(raw, dict):
+            # Still possible if caller passes a list of sheet names/indices.
+            raw = next(iter(raw.values()))
     else:
         raw = pd.read_csv(file_path, header=None)
 
