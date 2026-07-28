@@ -17,7 +17,17 @@ def build_itr2_json(
 ) -> dict:
     
     current_date = date.today().isoformat()
-    gross_salary = _round_int(tax_inputs.gross_salary)
+    gross_salary = _round_int(getattr(tax_inputs, "gross_salary", 0))
+
+    # Capital Gains Calculations (extracted or defaulted to 0)
+    stcg_20per = _round_int(tax_result.get("stcg_20per", 0)) if tax_result else 0
+    stcg_30per = _round_int(tax_result.get("stcg_30per", 0)) if tax_result else 0
+    total_stcg = stcg_20per + stcg_30per
+
+    ltcg_12_5per = _round_int(tax_result.get("ltcg_12_5per", 0)) if tax_result else 0
+    total_ltcg = ltcg_12_5per
+
+    total_cap_gains = total_stcg + total_ltcg
 
     # Building the compliant JSON schema structure
     itr_json = {
@@ -74,7 +84,46 @@ def build_itr2_json(
                 # Required empty schedules to pass mandatory schema validation checks
                 "ScheduleCYLA": {},
                 "ScheduleBFLA": {},
-                "PartB-TI": {},
+                "PartB-TI": {
+                    "Salaries": gross_salary,
+                    "IncomeFromHP": 0,
+                    "CapGain": {
+                        "ShortTerm": {
+                            "ShortTerm20Per": stcg_20per,
+                            "ShortTerm30Per": stcg_30per,
+                            "ShortTermAppRate": 0,
+                            "ShortTermSplRateDTAA": 0,
+                            "TotalShortTerm": total_stcg
+                        },
+                        "LongTerm": {
+                            "LongTerm12_5Per": ltcg_12_5per,
+                            "LongTermSplRateDTAA": 0,
+                            "TotalLongTerm": total_ltcg
+                        },
+                        "ShortTermLongTermTotal": total_cap_gains,
+                        "CapGains30Per115BBH": 0,
+                        "TotalCapGains": total_cap_gains
+                    },
+                    "IncFromOS": {
+                        "OtherSrcThanOwnRaceHorse": 0,
+                        "IncChargblSplRate": 0,
+                        "FromOwnRaceHorse": 0,
+                        "TotIncFromOS": 0
+                    },
+                    "TotalTI": gross_salary + total_cap_gains,
+                    "CurrentYearLoss": 0,
+                    "BalanceAfterSetoffLosses": gross_salary + total_cap_gains,
+                    "BroughtFwdLossesSetoff": 0,
+                    "GrossTotalIncome": gross_salary + total_cap_gains,
+                    "IncChargeTaxSplRate111A112": total_cap_gains,
+                    "DeductionsUnderScheduleVIA": 0,
+                    "TotalIncome": gross_salary + total_cap_gains,
+                    "IncChargeableTaxSplRates": total_cap_gains,
+                    "NetAgricultureIncomeOrOtherIncomeForRate": 0,
+                    "AggregateIncome": gross_salary + total_cap_gains,
+                    "LossesOfCurrentYearCarriedFwd": 0,
+                    "DeemedIncomeUs115JC": 0
+                },
                 "PartB_TTI": {},
                 "Verification": {
                     "Declaration": {
@@ -89,3 +138,4 @@ def build_itr2_json(
     }
 
     return itr_json
+    
