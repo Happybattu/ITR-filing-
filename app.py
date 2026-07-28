@@ -13,6 +13,7 @@ import os
 from form16_parser import parse_form16
 from capital_gains_parser import parse_broker_pnl
 from tax_calculator import TaxInputs, compare_regimes
+from itr2_json_builder import build_itr2_json, save_itr2_json
 
 st.set_page_config(page_title="ITR Helper", page_icon="🧾", layout="centered")
 st.title("🧾 ITR Helper — Personal Use")
@@ -64,6 +65,8 @@ broker_file = st.file_uploader("Broker P&L file", type=["csv", "xlsx", "xls"], k
 
 if "cg_totals" not in st.session_state:
     st.session_state.cg_totals = {"stcg_total": 0.0, "ltcg_total": 0.0}
+if "cg_trades" not in st.session_state:
+    st.session_state.cg_trades = []
 
 if broker_file is not None:
     suffix = "." + broker_file.name.split(".")[-1]
@@ -77,6 +80,7 @@ if broker_file is not None:
             "stcg_total": cg_result["stcg_total"],
             "ltcg_total": cg_result["ltcg_total"],
         }
+        st.session_state.cg_trades = cg_result["trades"]
         st.success(f"Parsed {cg_result['trade_count']} trade(s): STCG ₹{cg_result['stcg_total']:,.0f}, LTCG ₹{cg_result['ltcg_total']:,.0f}")
         for w in cg_result["warnings"]:
             st.warning(w)
@@ -157,6 +161,102 @@ if st.button("Compare old vs new regime", type="primary"):
         "your Form 16, Form 26AS, and AIS/TIS before relying on this."
     )
 
-st.divider()
-st.caption("Next to build: 26AS/AIS import, capital gains CSV import from broker P&L, JSON export in ITR schema format.")
+    # Persist so Step 4 (JSON export) can use these after this rerun
+    st.session_state.last_inputs = inputs
+    st.session_state.last_result = result
+
+# --- Step 4: Generate ITR-2 JSON ---------------------------------------------
+st.header("4. Generate ITR-2 JSON (draft)")
+st.caption(
+    "Scope: salary + equity STCG/LTCG + 80C/80D only. No house property, foreign "
+    "assets, or business income. Run step 3 first."
+)
+
+if "last_result" not in st.session_state:
+    st.info("Click **Compare old vs new regime** in step 3 first — the JSON builder needs that output.")
+else:
+    regime_choice = st.radio(
+        "File under which regime?",
+        ["new", "old"],
+        index=0 if st.session_state.last_result["recommended"] == "new" else 1,
+        horizontal=True,
+        format_func=lambda x: "New Regime" if x == "new" else "Old Regime",
+    )
+
+    with st.expander("Personal & bank details (required for the JSON — nothing is pre-filled)", expanded=True):
+        pc1, pc2 = st.columns(2)
+        with pc1:
+            first_name = st.text_input("First name")
+            surname = st.text_input("Surname")
+            father_name = st.text_input("Father's name")
+            pan = st.text_input("PAN", max_chars=10, help="Format: ABCDE1234F")
+            aadhaar = st.text_input("Aadhaar number (12 digits)", max_chars=12)
+            dob = st.date_input("Date of birth")
+        with pc2:
+            address_line = st.text_input("Address (house/flat, street)")
+            locality = st.text_input("Locality / area")
+            city = st.text_input("City", value="Jalandhar")
+            state_code = st.text_input("State code (2 digits — see ITR-2 schema list)", value="26", help="Punjab=26, Delhi=09, etc.")
+            pincode = st.number_input("PIN code", min_value=100000, max_value=999999, step=1, value=144001)
+            mobile = st.number_input("Mobile number", min_value=1000000000, max_value=9999999999, step=1, value=9999999999)
+            email = st.text_input("Email")
+
+        st.markdown("**Bank account (for refund)**")
+        bc1, bc2, bc3 = st.columns(3)
+        with bc1:
+            bank_name = st.text_input("Bank name")
+        with bc2:
+            account_no = st.text_input("Account number")
+        with bc3:
+            ifsc = st.text_input("IFSC code")
+
+    if st.button("Generate ITR-2 JSON", type="primary"):
+        missing = [
+            label for label, val in [
+                ("First name", first_name), ("Surname", surname), ("PAN", pan),
+                ("Aadhaar", aadhaar), ("Address", address_line), ("Locality", locality),
+                ("City", city), ("Email", email), ("Bank name", bank_name),
+                ("Account number", account_no), ("IFSC", ifsc),
+            ] if not val
+        ]
+        if missing:
+            st.error(f"Missing required fields: {', '.join(missing)}")
+        else:
+            personal_info = {
+                "first_name": first_name, "surname": surname, "father_name": father_name,
+                "pan": pan.upper(), "aadhaar": aadhaar, "dob": dob.isoformat(),
+                "address_line": address_line, "locality": locality, "city": city,
+                "state_code": state_code, "pincode": int(pincode), "mobile": int(mobile),
+                "email": email,
+            }
+            bank_account = {"ifsc": ifsc.upper(), "bank_name": bank_name, "account_no": account_no}
+
+            try:
+                itr_json = build_itr2_json(
+                    personal_info=personal_info,
+                    form16={"employer_name": ""},
+                    tax_inputs=st.session_state.last_inputs,
+                    tax_result=st.session_state.last_result[regime_choice],
+                    cg_trades=st.session_state.cg_trades,
+                    filing_regime=regime_choice,
+                    bank_account=bank_account,
+                )
+                json_str = __import__("json").dumps(itr_json, indent=2)
+                st.success("JSON generated. Download it and validate in the official offline utility before uploading anywhere.")
+                st.download_button(
+                    "Download ITR-2 JSON",
+                    data=json_str,
+                    file_name="itr2_draft.json",
+                    mime="application/json",
+                )
+                with st.expander("Preview JSON"):
+                    st.json(itr_json)
+            except Exception as e:
+                st.error(f"Couldn't build the JSON: {e}")
+
+    st.caption(
+        "This JSON matches the AY 2026-27 schema shape but has NOT been checked against "
+        "the department's cross-field validation rules. Always run it through the "
+        "official Excel/online utility before submitting."
+    )
     
