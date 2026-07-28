@@ -56,8 +56,15 @@ def build_itr2_json(
     gross_salary = _round_int(tax_inputs.gross_salary)
     std_deduction = 75000 if filing_regime == "new" else 50000
 
-    d80c = _round_int(min(tax_inputs.deduction_80c, 150000)) if filing_regime == "old" else 0
-    d80d = _round_int(tax_inputs.deduction_80d) if filing_regime == "old" else 0
+    # Under New Tax Regime, Chapter VI-A deductions (80C, 80D, etc.) are disallowed and set to 0.
+    if filing_regime == "new":
+        d80c = 0
+        d80d = 0
+    else:
+        d80c = _round_int(min(tax_inputs.deduction_80c, 150000))
+        d80d = _round_int(tax_inputs.deduction_80d)
+
+    net_salary_after_16 = max(0, gross_salary - std_deduction)
 
     itr = {
         "ITR": {
@@ -137,7 +144,7 @@ def build_itr2_json(
                     "DeductionUnderSection16ia": std_deduction,
                     "EntertainmntalwncUs16ii": 0,
                     "ProfessionalTaxUs16iii": 0,
-                    "TotIncUnderHeadSalaries": max(0, gross_salary - std_deduction),
+                    "TotIncUnderHeadSalaries": net_salary_after_16,
                 },
                 "ScheduleCGFor23": {
                     "ShortTermCapGainFor23": {
@@ -259,16 +266,33 @@ def build_itr2_json(
                     },
                 },
                 "ScheduleBFLA": {
-                    "TotalBFLossSetoff": 0,
+                    "BFLA": {
+                        "Salary": net_salary_after_16,
+                        "HP": 0,
+                        "STCG20Per": _round_int(stcg_112a_eligible),
+                        "STCG30Per": 0,
+                        "STCGAppRate": 0,
+                        "STCGDTAARate": 0,
+                        "LTCG12_5Per": _round_int(ltcg_taxable),
+                        "LTCGDTAARate": 0,
+                        "OthSrcExclRaceHorse": _round_int(tax_inputs.other_income),
+                        "OthSrcRaceHorse": 0,
+                        "IncomeOfCurrYrAftCYLABFLA": _round_int(
+                            net_salary_after_16 + stcg_112a_eligible + ltcg_taxable + tax_inputs.other_income
+                        ),
+                    },
+                    "TotalBFLossSetOff": 0,
                 },
                 "ScheduleVIA": {
                     "UsrDeductUndChapVIA": {
                         "Section80C": d80c,
                         "Section80D": d80d,
+                        "TotalChapVIADeductions": d80c + d80d,
                     },
                     "DeductUndChapVIA": {
                         "Section80C": d80c,
                         "Section80D": d80d,
+                        "TotalChapVIADeductions": d80c + d80d,
                     },
                     "TotalChapVIADeductions": d80c + d80d,
                 },
@@ -288,7 +312,7 @@ def build_itr2_json(
                     "TotalDeductionUs80D": d80d,
                 },
                 "PartB-TI": {
-                    "Salaries": max(0, gross_salary - std_deduction),
+                    "Salaries": net_salary_after_16,
                     "IncomeFromHP": 0,
                     "CapGain": {
                         "ShortTerm": {
@@ -314,15 +338,15 @@ def build_itr2_json(
                         "TotIncFromOS": _round_int(tax_inputs.other_income),
                     },
                     "TotalTI": _round_int(
-                        max(0, gross_salary - std_deduction) + stcg_112a_eligible + ltcg_taxable + tax_inputs.other_income
+                        net_salary_after_16 + stcg_112a_eligible + ltcg_taxable + tax_inputs.other_income
                     ),
                     "CurrentYearLoss": 0,
                     "BalanceAfterSetoffLosses": _round_int(
-                        max(0, gross_salary - std_deduction) + stcg_112a_eligible + ltcg_taxable + tax_inputs.other_income
+                        net_salary_after_16 + stcg_112a_eligible + ltcg_taxable + tax_inputs.other_income
                     ),
                     "BroughtFwdLossesSetoff": 0,
                     "GrossTotalIncome": _round_int(
-                        max(0, gross_salary - std_deduction) + stcg_112a_eligible + ltcg_taxable + tax_inputs.other_income
+                        net_salary_after_16 + stcg_112a_eligible + ltcg_taxable + tax_inputs.other_income
                     ),
                     "IncChargeTaxSplRate111A112": _round_int(stcg_112a_eligible + ltcg_taxable),
                     "DeductionsUnderScheduleVIA": d80c + d80d,
