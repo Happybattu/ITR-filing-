@@ -13,7 +13,7 @@ import os
 from form16_parser import parse_form16
 from capital_gains_parser import parse_broker_pnl
 from tax_calculator import TaxInputs, compare_regimes
-from itr2_json_builder import build_itr2_json, save_itr2_json
+from itr2_json_builder import build_itr2_json
 
 st.set_page_config(page_title="ITR Helper", page_icon="🧾", layout="centered")
 st.title("🧾 ITR Helper — Personal Use")
