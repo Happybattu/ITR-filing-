@@ -27,9 +27,11 @@ import json
 from datetime import date
 
 
-def _round_int(x: float) -> int:
-    """ITR schema fields are integers (rupees, no paise)."""
-    return int(round(x))
+def _round_int(x) -> int:
+    """Ensure strict integer output for ITR schema fields."""
+    if x is None:
+        return 0
+    return int(round(float(x)))
 
 
 def build_itr2_json(
@@ -37,24 +39,15 @@ def build_itr2_json(
     personal_info: dict,
     form16: dict,
     tax_inputs,          # tax_calculator.TaxInputs
-    tax_result: dict,    # one of compare_regimes(...)["new"] or ["old"]
-    cg_trades: list,      # from capital_gains_parser.parse_broker_pnl(...)["trades"]
-    filing_regime: str,   # "new" or "old"
+    tax_result: dict,    # tax comparison dictionary
+    cg_trades: list,     # capital gain trades
+    filing_regime: str,  # "new" or "old"
     bank_account: dict,
 ) -> dict:
-    """
-    personal_info = {
-        "first_name": str, "surname": str, "pan": str, "dob": "YYYY-MM-DD",
-        "aadhaar": str, "address_line": str, "locality": str, "city": str,
-        "state_code": str,  # e.g. "09" for Delhi, "06" for Chandigarh/Punjab region
-        "pincode": int, "mobile": int, "email": str,
-    }
-    bank_account = {"ifsc": str, "account_no": str, "bank_name": str, "account_type": "SB"|"CA"}
-    """
 
     today = date.today().isoformat()
 
-    # ---- STCG/LTCG split from parsed broker trades --------------------
+    # ---- STCG/LTCG Calculations ----
     stcg_112a_eligible = sum(t["pnl"] for t in cg_trades if t["term"] == "ST")
     ltcg_112a_total = sum(t["pnl"] for t in cg_trades if t["term"] == "LT")
     ltcg_exempt = min(125000, max(0, ltcg_112a_total))
@@ -97,9 +90,9 @@ def build_itr2_json(
                             "CityOrTownOrDistrict": personal_info["city"],
                             "StateCode": personal_info["state_code"],
                             "CountryCode": "91",
-                            "PinCode": personal_info["pincode"],
+                            "PinCode": _round_int(personal_info["pincode"]),
                             "CountryCodeMobile": 91,
-                            "MobileNo": personal_info["mobile"],
+                            "MobileNo": _round_int(personal_info["mobile"]),
                             "EmailAddress": personal_info["email"],
                         },
                         "SecondaryAdd": "N",
@@ -146,27 +139,44 @@ def build_itr2_json(
                     "ProfessionalTaxUs16iii": 0,
                     "TotIncUnderHeadSalaries": max(0, gross_salary - std_deduction),
                 },
-                # --- Short-term equity gains (section 111A, taxed @20%) ---
                 "ScheduleCGFor23": {
                     "ShortTermCapGainFor23": {
                         "NRITransacSec48Dtl": {"NRItaxSTTPaid": 0, "NRItaxSTTNotPaid": 0},
-                        "NRISecur115AD": {},
-                        "SaleOnOtherAssets": {},
+                        "NRISecur115AD": {
+                            "FullValueConsdRecvUnqshr": 0,
+                            "FairMrktValueUnqshr": 0,
+                            "FullValueConsdSec50CA": 0,
+                            "FullValueConsdOthUnqshr": 0,
+                            "FullConsideration": 0,
+                            "DeductSec48": {"TotalDedn": 0},
+                            "BalanceCG": 0,
+                            "LossSec94of7Or94of8": 0,
+                            "CapgainonAssets": 0,
+                        },
+                        "SaleOnOtherAssets": {
+                            "BalanceCG": 0,
+                            "LossSec94of7Or94of8": 0,
+                            "CapgainonAssets": 0,
+                        },
                         "EquityMFonSTT": [
                             {
                                 "MFSectionCode": "1A",
                                 "EquityMFonSTTDtls": {
                                     "FullValueConsdRecvUnqshr": 0,
                                     "FullValueConsdSec50CA": 0,
-                                    "FullValueConsdOthUnqshr": _round_int(stcg_112a_eligible) + 0,
+                                    "FullValueConsdOthUnqshr": _round_int(stcg_112a_eligible),
                                     "FullConsideration": _round_int(stcg_112a_eligible),
                                     "DeductSec48": {"AquisitCost": 0, "ImproveCost": 0, "ExpOnTrans": 0, "TotalDedn": 0},
                                     "BalanceCG": _round_int(stcg_112a_eligible),
                                     "CapgainonAssets": _round_int(stcg_112a_eligible),
                                 } if stcg_112a_eligible else {
-                                    "FullValueConsdRecvUnqshr": 0, "FullValueConsdSec50CA": 0,
-                                    "FullValueConsdOthUnqshr": 0, "FullConsideration": 0,
-                                    "DeductSec48": {"TotalDedn": 0}, "BalanceCG": 0, "CapgainonAssets": 0,
+                                    "FullValueConsdRecvUnqshr": 0,
+                                    "FullValueConsdSec50CA": 0,
+                                    "FullValueConsdOthUnqshr": 0,
+                                    "FullConsideration": 0,
+                                    "DeductSec48": {"TotalDedn": 0},
+                                    "BalanceCG": 0,
+                                    "CapgainonAssets": 0,
                                 },
                             }
                         ],
@@ -177,20 +187,40 @@ def build_itr2_json(
                         "TotalSTCG": _round_int(stcg_112a_eligible),
                     },
                     "LongTermCapGain23": {
-                        # LTCG on listed equity via STT goes in Schedule112A instead;
-                        # this node stays empty for our scope (no property/unlisted shares)
                         "UnutilizedLtcgFlag": "X",
+                        "SaleOfEquityShareUs112A": 0,
+                        "NRISaleOfEquityShareUs112A": 0,
+                        "NRISaleofForeignAsset": 0,
+                        "SaleofAssetNADtls": 0,
                         "TotalAmtDeemedLtcg": 0,
                         "PassThrIncNatureLTCG": 0,
                         "TotalAmtNotTaxUsDTAALtcg": 0,
+                        "TotalAmtTaxUsDTAALtcg": 0,
+                        "TotalLTCG": 0,
                     },
                     "SumOfCGIncm": _round_int(stcg_112a_eligible + ltcg_taxable),
                     "IncmFromVDATrnsf": 0,
                     "TotScheduleCGFor23": _round_int(stcg_112a_eligible + ltcg_taxable),
-                    "CurrYrLosses": {},
-                    "AccruOrRecOfCG": {},
+                    "CurrYrLosses": {
+                        "InLossSetOff": 0,
+                        "InStcg20Per": 0,
+                        "InStcg30Per": 0,
+                        "InStcgAppRate": 0,
+                        "InStcgDTAARate": 0,
+                        "InLtcg12_5Per": 0,
+                        "InLtcgDTAARate": 0,
+                        "TotLossSetOff": 0,
+                        "LossRemainSetOff": 0,
+                    },
+                    "AccruOrRecOfCG": {
+                        "ShortTermUnder20Per": 0,
+                        "ShortTermUnder30Per": 0,
+                        "ShortTermUnderAppRate": 0,
+                        "ShortTermUnderDTAARate": 0,
+                        "LongTermUnder12_5Per": 0,
+                        "LongTermUnderDTAARate": 0,
+                    },
                 },
-                # --- Long-term equity gains (section 112A, taxed @12.5% above 1.25L) ---
                 "Schedule112A": {
                     "Schedule112ADtls": [
                         {
@@ -224,8 +254,12 @@ def build_itr2_json(
                         "Section80C": d80c,
                         "Section80D": d80d,
                     },
+                    "DeductUndChapVIA": {
+                        "Section80C": d80c,
+                        "Section80D": d80d,
+                    },
                     "TotalChapVIADeductions": d80c + d80d,
-                } if filing_regime == "old" else {},
+                },
                 "Schedule80C": {
                     "Section80C": {"TotalDeductionUs80C": d80c}
                 } if d80c else {},
@@ -271,43 +305,43 @@ def build_itr2_json(
                     ),
                     "IncChargTaxSplRate111A112": _round_int(stcg_112a_eligible + ltcg_taxable),
                     "DeductionsUnderScheduleVIA": d80c + d80d,
-                    "TotalIncome": tax_result["taxable_income"],
+                    "TotalIncome": _round_int(tax_result["taxable_income"]),
                     "IncChargeableTaxSplRates": _round_int(stcg_112a_eligible + ltcg_taxable),
                     "NetAgricultureIncomeOrOtherIncomeForRate": 0,
-                    "AggregateIncome": tax_result["taxable_income"],
+                    "AggregateIncome": _round_int(tax_result["taxable_income"]),
                     "LossesOfCurrentYearCarriedFwd": 0,
                     "DeemedIncomeUs115JC": 0,
                 },
                 "PartB_TTI": {
                     "TaxPayDeemedTotIncUs115JC": 0,
-                    "Surcharge": tax_result["surcharge"],
-                    "HealthEduCess": tax_result["cess"],
+                    "Surcharge": _round_int(tax_result["surcharge"]),
+                    "HealthEduCess": _round_int(tax_result["cess"]),
                     "TotalTaxPayablDeemedTotInc": 0,
                     "ComputationOfTaxLiability": {
                         "TaxPayableOnTI": {
-                            "TaxAtNormalRatesOnAggrInc": tax_result["slab_tax"],
-                            "TaxAtSpecialRates": tax_result["capital_gains_tax"],
+                            "TaxAtNormalRatesOnAggrInc": _round_int(tax_result["slab_tax"]),
+                            "TaxAtSpecialRates": _round_int(tax_result["capital_gains_tax"]),
                             "RebateOnAgriInc": 0,
-                            "TaxPayableOnTotInc": tax_result["slab_tax"] + tax_result["capital_gains_tax"],
+                            "TaxPayableOnTotInc": _round_int(tax_result["slab_tax"] + tax_result["capital_gains_tax"]),
                         },
-                        "Rebate87A": tax_result["rebate_87a"],
-                        "TaxPayableOnRebate": tax_result["slab_tax"] + tax_result["capital_gains_tax"] - tax_result["rebate_87a"],
+                        "Rebate87A": _round_int(tax_result["rebate_87a"]),
+                        "TaxPayableOnRebate": _round_int(tax_result["slab_tax"] + tax_result["capital_gains_tax"] - tax_result["rebate_87a"]),
                         "Surcharge25ofSI": 0,
-                        "SurchargeOnAboveCrore": tax_result["surcharge"],
+                        "SurchargeOnAboveCrore": _round_int(tax_result["surcharge"]),
                         "Surcharge25ofSIBeforeMarginal": 0,
-                        "SurchargeOnAboveCroreBeforeMarginal": tax_result["surcharge"],
-                        "TotalSurcharge": tax_result["surcharge"],
-                        "EducationCess": tax_result["cess"],
-                        "GrossTaxLiability": tax_result["total_tax"],
-                        "GrossTaxPayable": tax_result["total_tax"],
+                        "SurchargeOnAboveCroreBeforeMarginal": _round_int(tax_result["surcharge"]),
+                        "TotalSurcharge": _round_int(tax_result["surcharge"]),
+                        "EducationCess": _round_int(tax_result["cess"]),
+                        "GrossTaxLiability": _round_int(tax_result["total_tax"]),
+                        "GrossTaxPayable": _round_int(tax_result["total_tax"]),
                         "CreditUS115JD": 0,
-                        "TaxPayAfterCreditUs115JD": tax_result["total_tax"],
-                        "NetTaxLiability": tax_result["total_tax"],
+                        "TaxPayAfterCreditUs115JD": _round_int(tax_result["total_tax"]),
+                        "NetTaxLiability": _round_int(tax_result["total_tax"]),
                         "IntrstPay": {
                             "IntrstPayUs234A": 0, "IntrstPayUs234B": 0, "IntrstPayUs234C": 0,
                             "LateFilingFee234F": 0, "TotalIntrstPay": 0,
                         },
-                        "AggregateTaxInterestLiability": tax_result["total_tax"],
+                        "AggregateTaxInterestLiability": _round_int(tax_result["total_tax"]),
                     },
                     "TaxPaid": {
                         "TaxesPaid": {
@@ -329,6 +363,7 @@ def build_itr2_json(
                                     "BankName": bank_account["bank_name"],
                                     "BankAccountNo": bank_account["account_no"],
                                     "AccountType": bank_account.get("account_type", "SB"),
+                                    "UseForRefund": "Y",
                                 }
                             ],
                         },
@@ -350,44 +385,3 @@ def build_itr2_json(
     }
 
     return itr
-
-
-def save_itr2_json(itr_dict: dict, output_path: str) -> None:
-    with open(output_path, "w") as f:
-        json.dump(itr_dict, f, indent=2)
-
-
-if __name__ == "__main__":
-    # Smoke test with dummy data — NOT real filing data
-    from tax_calculator import TaxInputs, compare_regimes
-
-    dummy_personal = {
-        "first_name": "Test", "surname": "User", "pan": "ABCDE1234F",
-        "dob": "1990-01-01", "aadhaar": "123456789012",
-        "address_line": "123 Test Street", "locality": "Test Locality",
-        "city": "Delhi", "state_code": "09", "pincode": 110001,
-        "mobile": 9999999999, "email": "test@example.com",
-        "father_name": "Father Name",
-    }
-    dummy_bank = {"ifsc": "HDFC0000001", "bank_name": "HDFC Bank", "account_no": "123456789012"}
-    dummy_form16 = {"employer_name": "Test Employer Pvt Ltd"}
-    dummy_trades = [
-        {"symbol": "RELIANCE", "term": "ST", "pnl": 2500.0},
-        {"symbol": "TCS", "term": "LT", "pnl": 3500.0},
-    ]
-
-    inputs = TaxInputs(gross_salary=1500000, tds_paid=145000, stcg_111a=2500, ltcg_112a=3500)
-    result = compare_regimes(inputs)
-
-    itr_json = build_itr2_json(
-        personal_info=dummy_personal,
-        form16=dummy_form16,
-        tax_inputs=inputs,
-        tax_result=result["new"],
-        cg_trades=dummy_trades,
-        filing_regime="new",
-        bank_account=dummy_bank,
-    )
-    save_itr2_json(itr_json, "sample_itr2_output.json")
-    print("Wrote sample_itr2_output.json")
-    print(f"Total tax (new regime): Rs.{result['new']['total_tax']:,.0f}")
