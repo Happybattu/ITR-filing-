@@ -75,13 +75,28 @@ class TaxInputs:
     stcg_111a: float = 0.0             # short-term capital gains (equity, 20%)
     ltcg_112a: float = 0.0             # long-term capital gains (equity, 12.5% above 1.25L exempt)
     age_band: str = "below60"          # below60 | senior | super_senior
+    
     # Old-regime-only deductions
     deduction_80c: float = 0.0         # cap 150000
     deduction_80d: float = 0.0         # health insurance
+    sec_80c: float = 0.0               # Field alias for app.py compatibility
+    sec_80d: float = 0.0               # Field alias for app.py compatibility
     hra_exemption: float = 0.0
     home_loan_interest: float = 0.0    # section 24b, cap 200000 self-occupied
     other_deductions: float = 0.0      # 80CCD(1B), 80E, 80G etc.
     tds_paid: float = 0.0              # from Form 16 / 26AS
+
+    def __post_init__(self):
+        # Synchronize sec_80c / deduction_80c and sec_80d / deduction_80d
+        if self.sec_80c > 0 and self.deduction_80c == 0:
+            self.deduction_80c = self.sec_80c
+        elif self.deduction_80c > 0 and self.sec_80c == 0:
+            self.sec_80c = self.deduction_80c
+
+        if self.sec_80d > 0 and self.deduction_80d == 0:
+            self.deduction_80d = self.sec_80d
+        elif self.deduction_80d > 0 and self.sec_80d == 0:
+            self.sec_80d = self.deduction_80d
 
 
 def _slab_tax(taxable: float, slabs: list[tuple[float, float]]) -> float:
@@ -118,9 +133,7 @@ def compute_new_regime(i: TaxInputs) -> dict:
     slab_tax = _slab_tax(taxable_ordinary, SLABS_NEW)
     tax_before_rebate = slab_tax + cg_tax
 
-    # 87A rebate applies only if TOTAL taxable income (incl. most CG, per current
-    # ITD utility behaviour LTCG 112A rebate is restricted — simplified here to
-    # ordinary-income-only rebate, which is the conservative/safe assumption)
+    # 87A rebate applies only if TOTAL taxable income
     rebate = 0.0
     if taxable_ordinary <= REBATE_87A_NEW["threshold"]:
         rebate = min(slab_tax, REBATE_87A_NEW["max_rebate"])
@@ -193,19 +206,29 @@ def compare_regimes(i: TaxInputs) -> dict:
     old = compute_old_regime(i)
     better = "new" if new["total_tax"] <= old["total_tax"] else "old"
     savings = abs(new["total_tax"] - old["total_tax"])
-    return {"new": new, "old": old, "recommended": better, "savings": round(savings, 2)}
+    
+    # Fully compatible dictionary structure for app.py
+    return {
+        "new": new,
+        "old": old,
+        "new_regime": new,
+        "old_regime": old,
+        "recommended": better,
+        "recommended_regime": better,
+        "savings": round(savings, 2),
+    }
 
 
 if __name__ == "__main__":
-    # Quick sanity check
     sample = TaxInputs(
         gross_salary=1500000,
         other_income=20000,
-        deduction_80c=150000,
-        deduction_80d=25000,
+        sec_80c=150000,
+        sec_80d=25000,
         hra_exemption=120000,
         tds_paid=145000,
     )
     result = compare_regimes(sample)
     import json
     print(json.dumps(result, indent=2))
+    
