@@ -148,12 +148,18 @@ def build_itr2_json(
                             "FullValueConsdSec50CA": 0,
                             "FullValueConsdOthUnqshr": 0,
                             "FullConsideration": 0,
-                            "DeductSec48": {"TotalDedn": 0},
+                            "DeductSec48": {"AquisitCost": 0, "ImproveCost": 0, "ExpOnTrans": 0, "TotalDedn": 0},
                             "BalanceCG": 0,
                             "LossSec94of7Or94of8": 0,
                             "CapgainonAssets": 0,
                         },
                         "SaleOnOtherAssets": {
+                            "FullValueConsdRecvUnqshr": 0,
+                            "FairMrktValueUnqshr": 0,
+                            "FullValueConsdSec50CA": 0,
+                            "FullValueConsdOthUnqshr": 0,
+                            "FullConsideration": 0,
+                            "DeductSec48": {"AquisitCost": 0, "ImproveCost": 0, "ExpOnTrans": 0, "TotalDedn": 0},
                             "BalanceCG": 0,
                             "LossSec94of7Or94of8": 0,
                             "CapgainonAssets": 0,
@@ -162,21 +168,16 @@ def build_itr2_json(
                             {
                                 "MFSectionCode": "1A",
                                 "EquityMFonSTTDtls": {
-                                    "FullValueConsdRecvUnqshr": 0,
-                                    "FullValueConsdSec50CA": 0,
-                                    "FullValueConsdOthUnqshr": _round_int(stcg_112a_eligible),
                                     "FullConsideration": _round_int(stcg_112a_eligible),
-                                    "DeductSec48": {"AquisitCost": 0, "ImproveCost": 0, "ExpOnTrans": 0, "TotalDedn": 0},
+                                    "DeductSec48": {
+                                        "AquisitCost": 0,
+                                        "ImproveCost": 0,
+                                        "ExpOnTrans": 0,
+                                        "TotalDedn": 0,
+                                    },
                                     "BalanceCG": _round_int(stcg_112a_eligible),
+                                    "LossSec94of7Or94of8": 0,
                                     "CapgainonAssets": _round_int(stcg_112a_eligible),
-                                } if stcg_112a_eligible else {
-                                    "FullValueConsdRecvUnqshr": 0,
-                                    "FullValueConsdSec50CA": 0,
-                                    "FullValueConsdOthUnqshr": 0,
-                                    "FullConsideration": 0,
-                                    "DeductSec48": {"TotalDedn": 0},
-                                    "BalanceCG": 0,
-                                    "CapgainonAssets": 0,
                                 },
                             }
                         ],
@@ -249,6 +250,17 @@ def build_itr2_json(
                     "Balance112A": _round_int(ltcg_taxable),
                     "TotalBalance112A": _round_int(ltcg_taxable),
                 },
+                "ScheduleCYLA": {
+                    "TotalLossSetoff": 0,
+                    "CurrYrLosses": {
+                        "InLossSetOff": 0,
+                        "TotLossSetOff": 0,
+                        "LossRemainSetOff": 0,
+                    },
+                },
+                "ScheduleBFLA": {
+                    "TotalBFLossSetoff": 0,
+                },
                 "ScheduleVIA": {
                     "UsrDeductUndChapVIA": {
                         "Section80C": d80c,
@@ -261,11 +273,20 @@ def build_itr2_json(
                     "TotalChapVIADeductions": d80c + d80d,
                 },
                 "Schedule80C": {
-                    "Section80C": {"TotalDeductionUs80C": d80c}
-                } if d80c else {},
+                    "Schedule80CDtls": [
+                        {
+                            "NatureOfPayment": "80C",
+                            "Amount": d80c,
+                        }
+                    ],
+                    "TotalAmt": d80c,
+                },
                 "Schedule80D": {
-                    "Section80D": {"TotalDeductionUs80D": d80d}
-                } if d80d else {},
+                    "Sec80DSelfFamSrCitizen": {
+                        "MedicalInsurancePremium": d80d,
+                    },
+                    "TotalDeductionUs80D": d80d,
+                },
                 "PartB-TI": {
                     "Salaries": max(0, gross_salary - std_deduction),
                     "IncomeFromHP": 0,
@@ -303,7 +324,7 @@ def build_itr2_json(
                     "GrossTotalIncome": _round_int(
                         max(0, gross_salary - std_deduction) + stcg_112a_eligible + ltcg_taxable + tax_inputs.other_income
                     ),
-                    "IncChargTaxSplRate111A112": _round_int(stcg_112a_eligible + ltcg_taxable),
+                    "IncChargeTaxSplRate111A112": _round_int(stcg_112a_eligible + ltcg_taxable),
                     "DeductionsUnderScheduleVIA": d80c + d80d,
                     "TotalIncome": _round_int(tax_result["taxable_income"]),
                     "IncChargeableTaxSplRates": _round_int(stcg_112a_eligible + ltcg_taxable),
@@ -338,8 +359,11 @@ def build_itr2_json(
                         "TaxPayAfterCreditUs115JD": _round_int(tax_result["total_tax"]),
                         "NetTaxLiability": _round_int(tax_result["total_tax"]),
                         "IntrstPay": {
-                            "IntrstPayUs234A": 0, "IntrstPayUs234B": 0, "IntrstPayUs234C": 0,
-                            "LateFilingFee234F": 0, "TotalIntrstPay": 0,
+                            "IntrstPayUs234A": 0,
+                            "IntrstPayUs234B": 0,
+                            "IntrstPayUs234C": 0,
+                            "LateFilingFee234F": 0,
+                            "TotalIntrstPay": 0,
                         },
                         "AggregateTaxInterestLiability": _round_int(tax_result["total_tax"]),
                     },
