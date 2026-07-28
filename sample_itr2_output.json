@@ -1,0 +1,268 @@
+{
+  "ITR": {
+    "ITR2": {
+      "CreationInfo": {
+        "SWVersionNo": "1.0",
+        "SWCreatedBy": "SW00000001",
+        "JSONCreatedBy": "SW00000001",
+        "JSONCreationDate": "2026-07-28",
+        "IntermediaryCity": "Delhi",
+        "Digest": "-"
+      },
+      "Form_ITR2": {
+        "FormName": "ITR-2",
+        "Description": "For Individuals and HUFs not having income from profits and gains of business or profession",
+        "AssessmentYear": "2026",
+        "SchemaVer": "Ver1.0",
+        "FormVer": "Ver1.0"
+      },
+      "PartA_GEN1": {
+        "PersonalInfo": {
+          "AssesseeName": {
+            "FirstName": "Test",
+            "SurNameOrOrgName": "User"
+          },
+          "PAN": "ABCDE1234F",
+          "Address": {
+            "ResidenceNo": "123 Test Street",
+            "LocalityOrArea": "Test Locality",
+            "CityOrTownOrDistrict": "Delhi",
+            "StateCode": "09",
+            "CountryCode": "91",
+            "PinCode": 110001,
+            "CountryCodeMobile": 91,
+            "MobileNo": 9999999999,
+            "EmailAddress": "test@example.com"
+          },
+          "SecondaryAdd": "N",
+          "DOB": "1990-01-01",
+          "Status": "I",
+          "AadhaarCardNo": "123456789012"
+        },
+        "FilingStatus": {
+          "ReturnFileSec": 11,
+          "OptOutNewTaxRegime": "N",
+          "SeventhProvisio139": "N",
+          "ResidentialStatus": "RES",
+          "HeldUnlistedEqShrPrYrFlg": "N",
+          "FiiFpiFlag": "N",
+          "ItrFilingDueDate": "2026-07-31"
+        }
+      },
+      "ScheduleS": {
+        "Salaries": [
+          {
+            "NameOfEmployer": "Test Employer Pvt Ltd",
+            "NatureOfEmployment": "OTH",
+            "AddressDetail": {
+              "AddrDetail": "123 Test Street",
+              "CityOrTownOrDistrict": "Delhi",
+              "StateCode": "09"
+            },
+            "Salarys": {
+              "GrossSalary": 1500000,
+              "Salary": 1500000,
+              "ValueOfPerquisites": 0,
+              "ProfitsinLieuOfSalary": 0,
+              "IncomeNotified89A": 0,
+              "IncomeNotifiedOther89A": 0
+            }
+          }
+        ],
+        "TotalGrossSalary": 1500000,
+        "AllwncExtentExemptUs10": 0,
+        "NetSalary": 1500000,
+        "DeductionUS16": 75000,
+        "DeductionUnderSection16ia": 75000,
+        "EntertainmntalwncUs16ii": 0,
+        "ProfessionalTaxUs16iii": 0,
+        "TotIncUnderHeadSalaries": 1425000
+      },
+      "ScheduleCGFor23": {
+        "ShortTermCapGainFor23": {
+          "NRITransacSec48Dtl": {
+            "NRItaxSTTPaid": 0,
+            "NRItaxSTTNotPaid": 0
+          },
+          "NRISecur115AD": {},
+          "SaleOnOtherAssets": {},
+          "EquityMFonSTT": [
+            {
+              "MFSectionCode": "1A",
+              "EquityMFonSTTDtls": {
+                "FullValueConsdRecvUnqshr": 0,
+                "FullValueConsdSec50CA": 0,
+                "FullValueConsdOthUnqshr": 2500,
+                "FullConsideration": 2500,
+                "DeductSec48": {
+                  "AquisitCost": 0,
+                  "ImproveCost": 0,
+                  "ExpOnTrans": 0,
+                  "TotalDedn": 0
+                },
+                "BalanceCG": 2500,
+                "CapgainonAssets": 2500
+              }
+            }
+          ],
+          "TotalAmtDeemedStcg": 0,
+          "PassThrIncNatureSTCG": 0,
+          "TotalAmtNotTaxUsDTAAStcg": 0,
+          "TotalAmtTaxUsDTAAStcg": 0,
+          "TotalSTCG": 2500
+        },
+        "LongTermCapGain23": {
+          "UnutilizedLtcgFlag": "X",
+          "TotalAmtDeemedLtcg": 0,
+          "PassThrIncNatureLTCG": 0,
+          "TotalAmtNotTaxUsDTAALtcg": 0
+        },
+        "SumOfCGIncm": 2500,
+        "IncmFromVDATrnsf": 0,
+        "TotScheduleCGFor23": 2500,
+        "CurrYrLosses": {},
+        "AccruOrRecOfCG": {}
+      },
+      "Schedule112A": {
+        "Schedule112ADtls": [
+          {
+            "ShareOnOrBefore": "N",
+            "ISIN": "TCS",
+            "ShareUnitName": "TCS",
+            "NumSharesUnits": 1,
+            "SalePricePerShareUnit": 3500,
+            "FullConsiderationValue": 3500,
+            "TotalFairMktValueSale": 0,
+            "TotalSaleValueAsper50": 0,
+            "COAWihoutIndx": 0,
+            "FMV": 0,
+            "COAWithIndx": 0,
+            "TotExpOnTransfer": 0
+          }
+        ],
+        "SaleValue112A": 3500,
+        "CostAcqWithoutIndx112A": 0,
+        "AcquisitionCost112A": 0,
+        "LTCGBeforelowerB1B2112A": 3500,
+        "FairMktValueCapAst112A": 0,
+        "ExpExclCnctTransfer112A": 0,
+        "Deductions112A": 3500,
+        "Balance112A": 0,
+        "TotalBalance112A": 0
+      },
+      "ScheduleVIA": {},
+      "Schedule80C": {},
+      "Schedule80D": {},
+      "PartB-TI": {
+        "Salaries": 1425000,
+        "IncomeFromHP": 0,
+        "CapGain": {
+          "ShortTerm": {
+            "ShortTerm20Per": 2500,
+            "ShortTerm30Per": 0,
+            "ShortTermAppRate": 0,
+            "ShortTermSplRateDTAA": 0,
+            "TotalShortTerm": 2500
+          },
+          "LongTerm": {
+            "LongTerm12_5Per": 0,
+            "LongTermSplRateDTAA": 0,
+            "TotalLongTerm": 0
+          },
+          "ShortTermLongTermTotal": 2500,
+          "CapGains30Per115BBH": 0,
+          "TotalCapGains": 2500
+        },
+        "IncFromOS": {
+          "OtherSrcThanOwnRaceHorse": 0,
+          "IncChargblSplRate": 0,
+          "FromOwnRaceHorse": 0,
+          "TotIncFromOS": 0
+        },
+        "TotalTI": 1427500,
+        "CurrentYearLoss": 0,
+        "BalanceAfterSetoffLosses": 1427500,
+        "BroughtFwdLossesSetoff": 0,
+        "GrossTotalIncome": 1427500,
+        "IncChargTaxSplRate111A112": 2500,
+        "DeductionsUnderScheduleVIA": 0,
+        "TotalIncome": 1427500.0,
+        "IncChargeableTaxSplRates": 2500,
+        "NetAgricultureIncomeOrOtherIncomeForRate": 0,
+        "AggregateIncome": 1427500.0,
+        "LossesOfCurrentYearCarriedFwd": 0,
+        "DeemedIncomeUs115JC": 0
+      },
+      "PartB_TTI": {
+        "TaxPayDeemedTotIncUs115JC": 0,
+        "Surcharge": 0.0,
+        "HealthEduCess": 3770.0,
+        "TotalTaxPayablDeemedTotInc": 0,
+        "ComputationOfTaxLiability": {
+          "TaxPayableOnTI": {
+            "TaxAtNormalRatesOnAggrInc": 93750.0,
+            "TaxAtSpecialRates": 500.0,
+            "RebateOnAgriInc": 0,
+            "TaxPayableOnTotInc": 94250.0
+          },
+          "Rebate87A": 0.0,
+          "TaxPayableOnRebate": 94250.0,
+          "Surcharge25ofSI": 0,
+          "SurchargeOnAboveCrore": 0.0,
+          "Surcharge25ofSIBeforeMarginal": 0,
+          "SurchargeOnAboveCroreBeforeMarginal": 0.0,
+          "TotalSurcharge": 0.0,
+          "EducationCess": 3770.0,
+          "GrossTaxLiability": 98020.0,
+          "GrossTaxPayable": 98020.0,
+          "CreditUS115JD": 0,
+          "TaxPayAfterCreditUs115JD": 98020.0,
+          "NetTaxLiability": 98020.0,
+          "IntrstPay": {
+            "IntrstPayUs234A": 0,
+            "IntrstPayUs234B": 0,
+            "IntrstPayUs234C": 0,
+            "LateFilingFee234F": 0,
+            "TotalIntrstPay": 0
+          },
+          "AggregateTaxInterestLiability": 98020.0
+        },
+        "TaxPaid": {
+          "TaxesPaid": {
+            "AdvanceTax": 0,
+            "TDS": 145000,
+            "TCS": 0,
+            "SelfAssessmentTax": 0,
+            "TotalTaxesPaid": 145000
+          },
+          "BalTaxPayable": 0
+        },
+        "Refund": {
+          "RefundDue": 46980,
+          "BankAccountDtls": {
+            "BankDtlsFlag": "Y",
+            "AddtnlBankDetails": [
+              {
+                "IFSCCode": "HDFC0000001",
+                "BankName": "HDFC Bank",
+                "BankAccountNo": "123456789012",
+                "AccountType": "SB"
+              }
+            ]
+          }
+        },
+        "AssetOutIndiaFlag": "NO"
+      },
+      "Verification": {
+        "Declaration": {
+          "AssesseeVerName": "Test User",
+          "FatherName": "Father Name",
+          "AssesseeVerPAN": "ABCDE1234F"
+        },
+        "Capacity": "S",
+        "Date": "2026-07-28",
+        "Place": "Delhi"
+      }
+    }
+  }
+}
