@@ -4,33 +4,46 @@ Reads a broker's capital gains / Tax P&L export (CSV or Excel — Zerodha
 Console, Groww, Upstox, ICICI Direct etc. all export similar tables with
 different column names) and produces STCG/LTCG totals for equity shares
 and equity mutual funds, ready to feed into tax_calculator.TaxInputs.
-
-IMPORTANT LIMITATIONS (v1):
-- Assumes listed equity / equity MF (111A short-term, 112A long-term).
-  Debt funds, unlisted shares, property etc. are NOT handled — those
-  have different holding-period thresholds and tax treatment.
-- Does NOT apply LTCG grandfathering (Jan 31, 2018 cost step-up) for
-  shares bought before that date — if you have pre-2018 holdings,
-  your actual LTCG may differ from what this reports. Flagged as a
-  warning when such trades are detected.
-- Holding period > 365 days = long-term. This is correct for listed
-  equity/equity MF but wrong for other asset classes.
 """
 
 import pandas as pd
 from datetime import datetime
 
 
-# Column name variants seen across broker exports — extend as you hit new formats
+# Column name variants seen across broker exports — extended for common Indian brokers
 COLUMN_ALIASES = {
-    "symbol": ["symbol", "scrip name", "stock name", "instrument", "security name", "isin"],
-    "buy_date": ["buy date", "purchase date", "date of purchase", "entry date", "buy_date"],
-    "sell_date": ["sell date", "sale date", "date of sale", "exit date", "sell_date"],
-    "quantity": ["qty", "quantity", "shares", "no of shares"],
-    "buy_value": ["buy value", "purchase value", "buy amount", "cost of acquisition", "buy price"],
-    "sell_value": ["sell value", "sale value", "sell amount", "sale consideration", "sell price"],
-    "realized_pnl": ["realized p&l", "realised p&l", "profit/loss", "profit", "pnl", "p&l", "taxable profit"],
-    "holding_type": ["period of holding", "term", "st/lt", "type"],
+    "symbol": [
+        "symbol", "scrip name", "stock name", "instrument", "security name", 
+        "isin", "tradingsymbol", "scrip", "stock", "company name"
+    ],
+    "buy_date": [
+        "buy date", "purchase date", "date of purchase", "entry date", 
+        "buy_date", "buy dt", "purchase dt"
+    ],
+    "sell_date": [
+        "sell date", "sale date", "date of sale", "exit date", 
+        "sell_date", "sell dt", "sale dt"
+    ],
+    "quantity": [
+        "qty", "quantity", "shares", "no of shares", "units", "quantity sold"
+    ],
+    "buy_value": [
+        "buy value", "purchase value", "buy amount", "cost of acquisition", 
+        "buy price", "total cost", "buy value (in rps)"
+    ],
+    "sell_value": [
+        "sell value", "sale value", "sell amount", "sale consideration", 
+        "sell price", "total sale value", "sell value (in rps)"
+    ],
+    "realized_pnl": [
+        "realized p&l", "realised p&l", "profit/loss", "profit", "pnl", 
+        "p&l", "taxable profit", "realized profit", "net profit", 
+        "realized p&l (in rps)", "realised p&l (in rps)", "gain/loss"
+    ],
+    "holding_type": [
+        "period of holding", "term", "st/lt", "type", "capital gain type", 
+        "holding period", "asset type"
+    ],
 }
 
 GRANDFATHER_CUTOFF = datetime(2018, 1, 31)
@@ -50,30 +63,23 @@ def _normalize_columns(df: pd.DataFrame) -> dict:
 
 
 def _find_header_row(raw_df: pd.DataFrame) -> int | None:
-    """Broker exports often have a few title/summary rows before the real
-    header. Scan the first 15 rows for one that matches known column names."""
-    for idx in range(min(15, len(raw_df))):
-        row_values = [str(v).strip().lower() for v in raw_df.iloc[idx].tolist()]
+    """Scan up to the first 50 rows for a row containing known column aliases."""
+    for idx in range(min(50, len(raw_df))):
+        row_values = [str(v).strip().lower() for v in raw_df.iloc[idx].dropna().tolist()]
         hits = 0
         for aliases in COLUMN_ALIASES.values():
-            if any(v in aliases for v in row_values):
+            if any(any(alias in v for alias in aliases) for v in row_values):
                 hits += 1
-        if hits >= 3:  # at least 3 recognizable columns = likely the header
+        if hits >= 2:  # Found at least 2 distinct matching field types
             return idx
     return None
 
 
 def _load_table(file_path: str, sheet_name=None) -> pd.DataFrame:
     if file_path.lower().endswith((".xlsx", ".xls")):
-        # pd.read_excel treats sheet_name=None as "read ALL sheets" and
-        # returns a dict of {sheet_name: DataFrame} instead of a single
-        # DataFrame — that's what was hitting raw.iloc[idx] below and
-        # throwing "'dict' object has no attribute 'iloc'".
-        # Default to the first sheet unless the caller asks for a specific one.
         effective_sheet = sheet_name if sheet_name is not None else 0
         raw = pd.read_excel(file_path, sheet_name=effective_sheet, header=None)
         if isinstance(raw, dict):
-            # Still possible if caller passes a list of sheet names/indices.
             raw = next(iter(raw.values()))
     else:
         raw = pd.read_csv(file_path, header=None)
@@ -89,14 +95,7 @@ def _load_table(file_path: str, sheet_name=None) -> pd.DataFrame:
 
 def parse_broker_pnl(file_path: str, sheet_name=None) -> dict:
     """
-    Returns:
-        {
-          "stcg_total": float,
-          "ltcg_total": float,
-          "trade_count": int,
-          "warnings": [str, ...],
-          "trades": [ {symbol, buy_date, sell_date, pnl, term}, ... ]
-        }
+    Parses broker capital gains report and outputs categorized trade summaries.
     """
     warnings = []
     df = _load_table(file_path, sheet_name=sheet_name)
@@ -128,7 +127,6 @@ def parse_broker_pnl(file_path: str, sheet_name=None) -> dict:
             if "buy_date" in colmap:
                 buy_date = pd.to_datetime(row[colmap["buy_date"]], errors="coerce", dayfirst=True)
 
-            # Determine term: prefer explicit holding_type column, else compute from dates
             term = None
             if "holding_type" in colmap:
                 raw_term = str(row[colmap["holding_type"]]).strip().lower()
