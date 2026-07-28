@@ -11,8 +11,8 @@ import tempfile
 import os
 
 from form16_parser import parse_form16
-from tax_calculator import TaxInputs, compare_regimes
 from capital_gains_parser import parse_broker_pnl
+from tax_calculator import TaxInputs, compare_regimes
 
 st.set_page_config(page_title="ITR Helper", page_icon="🧾", layout="centered")
 st.title("🧾 ITR Helper — Personal Use")
@@ -56,37 +56,37 @@ if uploaded is not None:
         st.error(f"Couldn't parse this PDF automatically ({e}). Enter figures manually below.")
     finally:
         os.unlink(tmp_path)
-st.header("Upload Broker Capital Gains Report (Optional)")
 
-broker_file = st.file_uploader(
-    "Upload Zerodha/Groww/Upstox/ICICI Direct P&L Report",
-    type=["csv", "xlsx", "xls"]
-)
+# --- Step 1b: Broker capital gains upload -----------------------------------
+st.header("1b. Upload broker capital gains P&L (optional)")
+st.caption("Zerodha Console 'Tax P&L' export, or similar CSV/Excel from your broker")
+broker_file = st.file_uploader("Broker P&L file", type=["csv", "xlsx", "xls"], key="broker_upload")
+
+if "cg_totals" not in st.session_state:
+    st.session_state.cg_totals = {"stcg_total": 0.0, "ltcg_total": 0.0}
 
 if broker_file is not None:
-    with tempfile.NamedTemporaryFile(delete=False, suffix=os.path.splitext(broker_file.name)[1]) as tmp:
+    suffix = "." + broker_file.name.split(".")[-1]
+    with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp:
         tmp.write(broker_file.read())
         tmp_path = tmp.name
 
     try:
-        gains = parse_broker_pnl(tmp_path)
-
-        st.success(f"Parsed {gains['trade_count']} trades")
-
-        st.session_state["stcg"] = gains["stcg_total"]
-        st.session_state["ltcg"] = gains["ltcg_total"]
-
-        st.write(f"STCG : ₹{gains['stcg_total']:,.2f}")
-        st.write(f"LTCG : ₹{gains['ltcg_total']:,.2f}")
-
-        for w in gains["warnings"]:
+        cg_result = parse_broker_pnl(tmp_path)
+        st.session_state.cg_totals = {
+            "stcg_total": cg_result["stcg_total"],
+            "ltcg_total": cg_result["ltcg_total"],
+        }
+        st.success(f"Parsed {cg_result['trade_count']} trade(s): STCG ₹{cg_result['stcg_total']:,.0f}, LTCG ₹{cg_result['ltcg_total']:,.0f}")
+        for w in cg_result["warnings"]:
             st.warning(w)
-
+        with st.expander("Trade-by-trade breakdown"):
+            st.dataframe(cg_result["trades"])
     except Exception as e:
-        st.error(e)
-
+        st.error(f"Couldn't parse this file automatically ({e}). Enter STCG/LTCG totals manually below.")
     finally:
         os.unlink(tmp_path)
+
 # --- Step 2: Editable fields -------------------------------------------------
 st.header("2. Verify / enter your figures")
 
@@ -94,8 +94,8 @@ col1, col2 = st.columns(2)
 with col1:
     gross_salary = st.number_input("Gross salary (₹)", value=float(st.session_state.fields["gross_salary"]), step=1000.0)
     other_income = st.number_input("Other income — interest, etc. (₹)", value=0.0, step=1000.0)
-    stcg = st.number_input("Short-term capital gains — equity, 111A (₹)", value=0.0, step=1000.0)
-    ltcg = st.number_input("Long-term capital gains — equity, 112A (₹)", value=0.0, step=1000.0)
+    stcg = st.number_input("Short-term capital gains — equity, 111A (₹)", value=float(st.session_state.cg_totals["stcg_total"]), step=1000.0)
+    ltcg = st.number_input("Long-term capital gains — equity, 112A (₹)", value=float(st.session_state.cg_totals["ltcg_total"]), step=1000.0)
     age_band = st.selectbox("Age band", ["below60", "senior", "super_senior"], format_func=lambda x: {
         "below60": "Below 60", "senior": "60-80 (Senior)", "super_senior": "80+ (Super senior)"
     }[x])
@@ -159,3 +159,4 @@ if st.button("Compare old vs new regime", type="primary"):
 
 st.divider()
 st.caption("Next to build: 26AS/AIS import, capital gains CSV import from broker P&L, JSON export in ITR schema format.")
+    
